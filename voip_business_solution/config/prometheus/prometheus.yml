@@ -1,0 +1,93 @@
+# prometheus.yml (VoIP Business Solution)
+
+global:
+  scrape_interval: 15s # How frequently to scrape targets by default.
+  evaluation_interval: 15s # How frequently to evaluate rules.
+  # scrape_timeout is set to the global default (10s).
+
+# Alertmanager configuration (Placeholder - Alertmanager should be running separately)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - 'alertmanager:9093' # Default Alertmanager port
+
+# Rule files to load (for recording rules and alerts)
+rule_files:
+  - "voip_rules.yml" # As per document, placeholder for actual rules
+  # - "another_rules.yml"
+
+# A scrape configuration containing exactly one endpoint to scrape:
+# Here it's Prometheus itself.
+scrape_configs:
+  # The job name is added as a label `job=<job_name>` to any timeseries scraped from this config.
+  - job_name: 'prometheus'
+    # metrics_path defaults to '/metrics'
+    # scheme defaults to 'http'.
+    static_configs:
+      - targets: ['localhost:9090'] # Prometheus default port
+
+  # Node Exporter for system metrics (CPU, RAM, Disk, Network)
+  # Assumes Node Exporter is running on these target machines.
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets:
+          - 'app-server-01:9100'
+          - 'app-server-02:9100'
+          - 'app-server-03:9100'
+          - 'db-server-01:9100'  # For PostgreSQL server host
+          - 'db-server-02:9100'  # For replica/backup DB server host
+          - 'voip-proxy-01:9100' # For Kamailio server host
+          - 'voip-media-01:9100' # For Asterisk server host
+          - 'load-balancer-01:9100' # For Load Balancer host
+
+  # VoIP Backend Flask Application (needs a /metrics endpoint, e.g., using prometheus_flask_exporter)
+  - job_name: 'voip-backend'
+    metrics_path: /metrics # Standard path for Flask exporter
+    static_configs:
+      - targets:
+          - 'app-server-01:5000' # Gunicorn port
+          - 'app-server-02:5000'
+          - 'app-server-03:5000'
+    # relabel_configs could be used here for adding environment labels, etc.
+
+  # Kamailio Exporter (e.g., kamailio-prometheus-exporter)
+  # The document specifies port 9494 for Kamailio target.
+  - job_name: 'kamailio'
+    static_configs:
+      - targets: ['voip-proxy-01:9494'] # Port for Kamailio exporter
+
+  # Asterisk Exporter (e.g., asterisk-prometheus-exporter or metrics via AMI)
+  # The document specifies port 8088, which is often Asterisk's HTTP/AMI port.
+  # An exporter would typically expose /metrics on a different port or path.
+  # Assuming an exporter is running and exposing /metrics on 8088, or this is custom.
+  - job_name: 'asterisk'
+    # metrics_path: /metrics # Default, or specify if different
+    static_configs:
+      - targets: ['voip-media-01:8088'] # Port for Asterisk exporter or AMI metrics endpoint
+
+  # Nginx Exporter (e.g., nginx-prometheus-exporter or Nginx stub_status module)
+  # The document specifies port 9113 for Nginx target.
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['load-balancer-01:9113'] # Port for Nginx exporter
+
+  # PostgreSQL Exporter (e.g., postgres_exporter)
+  # The document specifies port 9187 for Postgres target.
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['db-server-01:9187'] # Port for PostgreSQL exporter
+      # - targets: ['db-server-02:9187'] # If replica also has an exporter
+
+# Notes:
+# - Replace 'app-server-01', 'db-server-01', etc., with actual hostnames or IPs.
+# - Ensure all target exporters (Node Exporter, Flask Exporter, Kamailio Exporter, etc.)
+#   are installed and running on the specified ports on the target machines.
+# - The `voip_rules.yml` file needs to be created with alerting and recording rules.
+# - This configuration assumes Prometheus and Alertmanager are part of your monitoring setup.
+# - For cloud environments (AWS, Azure), service discovery mechanisms (e.g., ec2_sd_configs, azure_sd_configs)
+#   are preferred over static_configs for dynamic environments.
+# - The document's target list for node-exporter was more extensive. This includes key components.
+#   Add other servers (e.g. Redis, ELK stack nodes) if they also run node_exporter.
+# - For `voip-backend`, `kamailio`, `asterisk`, `nginx`, `postgres` jobs, ensure the
+#   `/metrics` endpoint (or the relevant one for the exporter) is accessible.

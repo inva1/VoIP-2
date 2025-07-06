@@ -1,0 +1,192 @@
+{
+    "annotations": {
+        "list": [
+            {
+                "builtIn": 1,
+                "datasource": {
+                    "type": "grafana",
+                    "uid": "-- Grafana --"
+                },
+                "enable": true,
+                "hide": true,
+                "iconColor": "rgba(0, 211, 255, 1)",
+                "name": "Annotations & Alerts",
+                "type": "dashboard"
+            }
+        ]
+    },
+    "editable": true,
+    "fiscalYearStartMonth": 0,
+    "graphTooltip": 0,
+    "id": null,   داشборд "title": "VoIP Business Metrics",
+    "links": [],
+    "panels": [
+        {
+            "id": 1,
+            "title": "Active Users",
+            "type": "stat",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "targets": [
+                {
+                    "expr": "sum(voip_active_users_total)",
+                    "legendFormat": "Active Users",
+                    "refId": "A",
+                    "instant": true
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            { "color": "green", "value": null },
+                            { "color": "rgba(237, 129, 40, 0.87)", "value": 1000 },
+                            { "color": "red", "value": 5000 }
+                        ]
+                    },
+                    "mappings": [],
+                    "unit": "short"
+                },
+                "overrides": []
+            },
+            "gridPos": { "h": 8, "w": 6, "x": 0, "y": 0 },
+            "options": {
+                "reduceOptions": {
+                    "values": false,
+                    "calcs": ["lastNotNull"],
+                    "fields": ""
+                },
+                "orientation": "auto",
+                "textMode": "auto",
+                "colorMode": "value",
+                "graphMode": "area",
+                "justifyMode": "auto"
+            }
+        },
+        {
+            "id": 2,
+            "title": "Call Volume (Calls per Second)",
+            "type": "graph",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "targets": [
+                {
+                    "expr": "sum(rate(voip_calls_total_count[5m]))",
+                    "legendFormat": "Calls per Second",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "color": {"mode": "palette-classic"},
+                    "custom": {"lineWidth": 2, "fillOpacity": 10},
+                    "unit": "cps"
+                },
+                "overrides": []
+            },
+            "gridPos": { "h": 8, "w": 18, "x": 6, "y": 0 },
+            "options": {
+                "legend": {"displayMode": "list", "placement": "bottom"},
+                "tooltip": {"mode": "multi"}
+            }
+        },
+        {
+            "id": 3,
+            "title": "Revenue Metrics",
+            "type": "graph",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "targets": [
+                {
+                    "expr": "sum(voip_revenue_total)",
+                    "legendFormat": "Total Revenue (Cumulative)",
+                    "refId": "A"
+                },
+                {
+                    "expr": "sum(rate(voip_revenue_total[1h])) * 3600",
+                    "legendFormat": "Hourly Revenue Rate",
+                    "refId": "B"
+                },
+                {
+                    "expr": "sum(increase(voip_revenue_total[1M]))",
+                    "legendFormat": "Monthly Revenue (Approx.)",
+                    "refId": "C",
+                    "instant": true
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "color": {"mode": "palette-classic"},
+                    "custom": {"lineWidth": 2, "fillOpacity": 10, "stacking": {"mode": "none"}},
+                    "unit": "currencyUSD"
+                },
+                "overrides": []
+            },
+            "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+            "options": {
+                "legend": {"displayMode": "list", "placement": "bottom"},
+                "tooltip": {"mode": "multi"}
+            }
+        },
+        {
+            "id": 4,
+            "title": "KYC Status Distribution",
+            "type": "piechart",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "targets": [
+                {
+                    "expr": "sum(voip_kyc_status_count) by (status)",
+                    "legendFormat": "{{status}}",
+                    "refId": "A",
+                    "instant": true
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "color": {"mode": "palette-classic"},
+                    "custom": {},
+                    "unit": "short"
+                },
+                "overrides": []
+            },
+            "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+            "options": {
+                "reduceOptions": {
+                    "values": false,
+                    "calcs": ["lastNotNull"],
+                    "fields": ""
+                },
+                "displayLabels": ["name", "percent"],
+                "pieType": "pie"
+            }
+        }
+    ],
+    "refresh": "30s",
+    "schemaVersion": 37,
+    "style": "dark",
+    "tags": ["voip", "business"],
+    "templating": {
+        "list": []
+    },
+    "time": {
+        "from": "now-6h",
+        "to": "now"
+    },
+    "timepicker": {},
+    "timezone": "browser",
+    "version": 1,
+    "weekStart": ""
+}

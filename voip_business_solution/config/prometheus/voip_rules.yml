@@ -1,0 +1,132 @@
+# Prometheus Rules for VoIP Business Solution (voip_rules.yml)
+# This file contains placeholder alerting and recording rules.
+# Actual rules will depend on specific metrics exposed by exporters and business needs.
+
+groups:
+  - name: voip_system_alerts
+    rules:
+      # Alert for high CPU usage on any node
+      - alert: HostHighCpuLoad
+        expr: avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100 < 20
+        for: 5m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "Host high CPU load on {{ $labels.instance }}"
+          description: "CPU load is critically high on instance {{ $labels.instance }}. Idle CPU is {{ $value | printf \"%.2f\" }}%."
+
+      # Alert for low disk space
+      - alert: HostLowDiskSpace
+        expr: node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"} * 100 < 10
+        for: 5m
+        labels:
+          severity: critical
+          service: system
+        annotations:
+          summary: "Host low disk space on {{ $labels.instance }}"
+          description: "Disk space on {{ $labels.instance }} at mountpoint {{ $labels.mountpoint }} is {{ $value | printf \"%.2f\" }}%."
+
+      # Alert for PostgreSQL server down
+      - alert: PostgresDown
+        expr: up{job="postgres"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: database
+        annotations:
+          summary: "PostgreSQL server down on {{ $labels.instance }}"
+          description: "PostgreSQL exporter on {{ $labels.instance }} is down."
+
+      # Alert for Kamailio SIP Proxy down
+      - alert: KamailioDown
+        expr: up{job="kamailio"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: voip_core
+        annotations:
+          summary: "Kamailio SIP Proxy down on {{ $labels.instance }}"
+          description: "Kamailio exporter on {{ $labels.instance }} is down."
+
+      # Alert for Asterisk Media Server down
+      - alert: AsteriskDown
+        expr: up{job="asterisk"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: voip_core
+        annotations:
+          summary: "Asterisk Media Server down on {{ $labels.instance }}"
+          description: "Asterisk exporter on {{ $labels.instance }} is down."
+
+      # Alert for high error rate on VoIP Backend API
+      # Assumes flask_http_request_duration_seconds_count{status=~"5.."} metric from Flask exporter
+      - alert: HighApiErrorRate
+        expr: sum(rate(flask_http_request_duration_seconds_count{job="voip-backend", status=~"5.."}[5m])) / sum(rate(flask_http_request_duration_seconds_count{job="voip-backend"}[5m])) * 100 > 5
+        for: 5m
+        labels:
+          severity: warning
+          service: backend_api
+        annotations:
+          summary: "High API error rate on voip-backend ({{ $value | printf \"%.2f\" }}%)"
+          description: "The rate of 5xx errors from the voip-backend API is above 5%."
+
+  - name: voip_business_metrics_alerts
+    rules:
+      # Alert for low active users (example metric)
+      # Assumes a metric like `voip_active_users_total` is exposed by the backend
+      - alert: LowActiveUsers
+        expr: voip_active_users_total < 100 # Threshold example
+        for: 30m
+        labels:
+          severity: warning
+          service: business
+        annotations:
+          summary: "Low active users detected ({{ $value }})"
+          description: "The number of active users has dropped below 100 for 30 minutes."
+
+      # Alert for significant drop in call volume (example metric)
+      # Assumes `voip_calls_total_count` or similar
+      - alert: CallVolumeDrop
+        expr: rate(voip_calls_total_count[1h]) < (avg_over_time(rate(voip_calls_total_count[1h])[24h]) * 0.5)
+        for: 1h
+        labels:
+          severity: critical
+          service: business
+        annotations:
+          summary: "Significant drop in call volume"
+          description: "Current call volume ({{ $value | printf \"%.2f\" }} calls/hr) is less than 50% of the 24h average."
+
+      # Alert for KYC processing queue too long (example metric)
+      # Assumes `voip_kyc_pending_verifications_total`
+      - alert: LongKYCQueue
+        expr: voip_kyc_pending_verifications_total > 50 # Threshold example
+        for: 1h
+        labels:
+          severity: warning
+          service: compliance
+        annotations:
+          summary: "KYC verification queue is too long ({{ $value }} pending)"
+          description: "There are over 50 KYC verifications pending for more than 1 hour."
+
+# Example Recording Rules (pre-calculate complex queries)
+# groups:
+#  - name: voip_recording_rules
+#    rules:
+#      - record: instance:node_cpu_utilisation:rate5m
+#        expr: 100 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100
+#
+#      - record: job:http_requests_total:sum_rate5m
+#        expr: sum by (job) (rate(http_requests_total[5m]))
+
+# Notes:
+# - These are example rules. Real-world rules need to be tailored to the specific metrics
+#   exposed by your application and infrastructure, and your operational requirements.
+# - Metric names like `voip_active_users_total`, `voip_calls_total_count`, `voip_kyc_pending_verifications_total`
+#   are placeholders and need to be implemented in your `voip-backend` Flask application's
+#   Prometheus exporter (e.g., using `prometheus_client` or `prometheus_flask_exporter`).
+# - Adjust thresholds, `for` durations, labels, and annotations as needed.
+# - Ensure Alertmanager is configured to handle these alerts (e.g., send notifications via email, Slack, PagerDuty).
+# - Test rules thoroughly.
+# - For business metrics, consider what is truly actionable as an alert versus what should be on a dashboard.

@@ -1,0 +1,27 @@
+Flask==2.2.2 # Using a specific version for stability, can be updated
+Flask-SQLAlchemy==2.5.1
+Flask-Migrate==3.1.0
+Flask-Cors==3.0.10
+# Flask-JWT-Extended # Will be added when JWT is implemented
+psycopg2-binary # For PostgreSQL
+redis # For Redis
+celery # For Celery (task queue)
+gunicorn # WSGI server
+supervisor # Process control system (though installed at system level usually)
+cryptography # For encryption tasks
+PyJWT # For JWT generation/validation if not using Flask-JWT-Extended directly
+requests # For making HTTP requests to external APIs
+boto3 # For AWS S3 integration (e.g., for backups or file uploads)
+
+# Optional: for schemas if you decide to use Marshmallow
+# marshmallow==3.19.0
+# marshmallow-sqlalchemy==0.29.0
+
+# Linters and formatters (development dependencies)
+# flake8
+# black
+
+# Testing
+# pytest
+# pytest-flask
+# coverage
