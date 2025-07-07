@@ -1,0 +1,189 @@
+{
+  "dashboard": {
+    "id": null, # Grafana will assign an ID on import, or you can set one
+    "uid": "voip-business-metrics-01", # Unique identifier for the dashboard
+    "title": "VoIP Business Metrics",
+    "tags": ["voip", "business"],
+    "timezone": "browser", # Use browser's timezone
+    "schemaVersion": 36, # Current Grafana schema version (check your Grafana version)
+    "version": 1, # Dashboard version
+    "refresh": "30s", # Auto-refresh interval
+    "time": {
+      "from": "now-6h", # Default time range: last 6 hours
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Active Users",
+        "type": "stat", # Stat panel for single metric display
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0}, # Position and size on the grid
+        "targets": [
+          {
+            "expr": "sum(voip_active_users_total)", # Example PromQL query for active users
+            "legendFormat": "Active Users",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "mode": "absolute", # Or "percentage"
+              "steps": [
+                {"color": "green", "value": null},     # Base color
+                {"color": "rgba(237, 129, 40, 0.87)", "value": 1000},  # Warning threshold (orange)
+                {"color": "red", "value": 5000}      # Critical threshold
+              ]
+            },
+            "mappings": [],
+            "unit": "short" # Display as K, M, B etc.
+          }
+        },
+        "options": {
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"], # Show the last non-null value
+            "fields": ""
+          },
+          "orientation": "auto",
+          "textMode": "auto",
+          "colorMode": "value",
+          "graphMode": "area",
+          "justifyMode": "auto"
+        }
+      },
+      {
+        "id": 2,
+        "title": "Call Volume (Calls per Second)",
+        "type": "graph", # Time series graph (old 'graph', new is 'timeseries')
+                       # Using 'timeseries' type for modern Grafana
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 18, "x": 6, "y": 0},
+        "targets": [
+          {
+            "expr": "sum(rate(voip_calls_total[1m])) by (instance)", # Example: calls per minute, summed
+                                                               # Document had [5m] for calls per second,
+                                                               # rate over 1m or 5m is fine.
+                                                               # Let's use 1m for "per second" feel.
+            "legendFormat": "{{instance}} - Calls/sec",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(rate(voip_calls_failed_total[1m])) by (instance)",
+            "legendFormat": "{{instance}} - Failed Calls/sec",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "custom": {
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "line",
+              "fillOpacity": 10,
+              "gradientMode": "opacity",
+              "lineInterpolation": "smooth",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "showPoints": "auto",
+              "spanNulls": false,
+              "stacking": {"mode": "none", "group": "A"},
+              "hideFrom": {"tooltip": false, "viz": false, "legend": false}
+            },
+            "mappings": [],
+            "unit": "cps" # Calls per second
+          }
+        },
+        "options": {
+          "legend": {"displayMode": "list", "placement": "bottom", "showLegend": true},
+          "tooltip": {"mode": "multi", "sort": "none"}
+        }
+      },
+      {
+        "id": 3,
+        "title": "Revenue Metrics",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(voip_revenue_total[1d]))", # Daily rate of total revenue
+            "legendFormat": "Daily Revenue Rate",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(voip_revenue_monthly_total)", # Cumulative monthly revenue (if this is a gauge/counter)
+                                                     # Or if it's a rate: sum(rate(voip_revenue_monthly_total[1d]))
+            "legendFormat": "Monthly Revenue (Cumulative)",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "custom": {"drawStyle": "line", "lineInterpolation": "smooth", "fillOpacity": 10},
+            "unit": "currencyUSD" # Example unit
+          }
+        },
+        "options": {
+          "legend": {"displayMode": "list", "placement": "bottom", "showLegend": true},
+          "tooltip": {"mode": "multi", "sort": "none"}
+        }
+      },
+      {
+        "id": 4,
+        "title": "KYC Status Distribution",
+        "type": "piechart",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "targets": [
+          {
+            # Assumes voip_kyc_status_count has a 'status' label
+            "expr": "sum(voip_kyc_status_count) by (status)",
+            "legendFormat": "{{status}}",
+            "refId": "A",
+            "format": "table" # Pie chart often works well with table formatted data
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "custom": {"hideFrom": {"tooltip": false, "viz": false, "legend": false}}
+          }
+        },
+        "options": {
+          "reduceOptions": {"values": false, "calcs": ["sum"], "fields": ""},
+          "pieType": "pie", # Or "donut"
+          "displayLabels": ["name", "percent"],
+          "legend": {"displayMode": "list", "placement": "right", "showLegend": true}
+        }
+      }
+      // Add more panels as needed:
+      // - Call success rate (ASR)
+      // - Average Call Duration (ACD)
+      // - System resource usage (CPU, Memory, Disk) from node_exporter
+      // - Database performance metrics
+      // - Kamailio transaction rates, SIP error codes
+      // - Asterisk channel stats, SIP peer status
+    ]
+  }
+}
+
+// Notes for this Grafana dashboard JSON:
+// - Metric names (voip_active_users_total, voip_calls_total, voip_revenue_total, voip_kyc_status_count)
+//   are examples. These metrics need to be exposed by the voip-backend application or other services
+//   and scraped by Prometheus.
+// - The `gridPos` values (h, w, x, y) define the panel's height, width, and position on the dashboard.
+//   Adjust these to fit your layout preferences.
+// - `schemaVersion` and `uid` are important for Grafana.
+// - This JSON can be imported into Grafana directly or provisioned by placing it in Grafana's
+//   dashboard provisioning directory (e.g., /var/lib/grafana/dashboards/ or as configured).
+// - Some panel types or options might vary slightly between Grafana versions. This is a general structure.
+// - The original document's panel JSON was minimal. This has been expanded with common Grafana panel properties
+//   to make it more complete and functional for modern Grafana versions.
+// - For "graph" type, modern Grafana prefers "timeseries". I've used "timeseries" where appropriate.
+// - Units (like "currencyUSD", "cps") should be set according to your metrics.
+// - Thresholds in the "Active Users" panel are examples.
+// - Pie chart data format is often best as 'table' for PromQL queries with 'by (label)'.

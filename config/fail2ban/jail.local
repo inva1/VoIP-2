@@ -1,0 +1,140 @@
+# Fail2ban Local Jail Configuration for VoIP Business Solution
+# Based on VoIP Business Solution: Enhanced Deployment Guide (Version 2.0)
+#
+# This file should be placed at /etc/fail2ban/jail.local
+# It overrides settings from /etc/fail2ban/jail.conf.
+# Do NOT edit jail.conf directly, as updates can overwrite it.
+
+[DEFAULT]
+# Default settings for all jails unless overridden.
+
+# Ban time in seconds. 3600 = 1 hour.
+bantime = 1h
+
+# Find time in seconds. A client is banned if it generates maxretry during the last findtime seconds.
+findtime = 10m # Document has 600 (10 minutes)
+
+# Number of failures before a ban.
+maxretry = 3   # Document has 3 for default, 3 for sshd, 5 for kamailio/asterisk
+
+# Backend to use for log monitoring. 'auto' usually works. 'systemd' is common on modern systems.
+backend = auto # Document specifies 'systemd' for sshd, but 'auto' is a safe default.
+
+# Use DNS for hostname lookup (can slow down if DNS is unreliable). 'warn' logs a warning if DNS fails.
+usedns = warn
+
+# Log encoding. 'auto' usually works.
+logencoding = auto
+
+# Default action. Can be overridden per jail.
+# Common actions: %(action_)s (simple ban), %(action_mw)s (ban + email), %(action_mwl)s (ban + email + logs)
+# To use specific firewall (e.g. ufw): action = ufw[name=%(__name__)s, port="%(port)s", protocol="%(protocol)s"]
+# For now, using default action which often symlinks to iptables or nftables actions.
+# The document doesn't specify a global action, implying defaults or per-jail actions.
+
+# Whitelist IPs that should never be banned.
+# Space-separated list. Use CIDR notation if needed.
+# ignoreip = 127.0.0.1/8 ::1 192.168.1.0/24 your.trusted.ip.address
+
+# Email notifications (configure mail settings in action.d/mail*.conf or globally)
+# destemail = your-email@example.com
+# sendername = Fail2BanAlerts
+# sender = fail2ban@your-server.com
+
+# Default enabled state for jails (can be overridden per jail)
+# The document has `enabled = false` in DEFAULT, then enables specific jails. This is good practice.
+enabled = false
+
+# Mode for filters (normal, ddos, aggressive, extra). Default is normal.
+# mode = normal # This is the default, not usually set in jail.local unless changing.
+# filter = %(__name__)s[mode=%(mode)s] # This is also a default from jail.conf
+
+
+# SSHD Jail (for protecting SSH service)
+[sshd]
+enabled = true
+port = ssh # Uses 'ssh' service name, typically port 22. Can specify port number.
+# filter = sshd # Uses filter in /etc/fail2ban/filter.d/sshd.conf
+logpath = %(sshd_log)s # Uses backend-specific log path for sshd (e.g., journalctl for systemd)
+backend = %(sshd_backend)s # Uses backend defined for sshd (e.g., systemd)
+maxretry = 3 # Document: 3
+bantime = 30m # Document: 1800s (30 minutes) - shorter than default for SSH, perhaps.
+              # Let's use the document's value. Original default was 1h.
+
+# Nginx HTTP Authentication Jail
+# Protects against brute-force attacks on HTTP basic/digest auth.
+[nginx-http-auth]
+enabled = true
+filter = nginx-http-auth # Assumes this filter exists (Fail2ban includes it)
+logpath = /var/log/nginx/error.log # Path to Nginx error log
+maxretry = 3 # Document: 3
+bantime = 1h # Document: 3600s (1 hour)
+
+# Nginx Rate Limiting Jail
+# Bans IPs that trigger Nginx's ngx_http_limit_req_module.
+# Nginx must be configured to log these errors to error.log with a specific message.
+[nginx-limit-req]
+enabled = true
+filter = nginx-limit-req # Assumes this filter exists (Fail2ban includes it)
+logpath = /var/log/nginx/error.log
+maxretry = 10 # Document: 10 (more lenient as it's rate limiting, not just auth failure)
+findtime = 10m # Document: 600s
+bantime = 10m # Document: 600s (shorter ban for rate limit violations)
+
+# Kamailio SIP Proxy Jail
+# Requires a custom filter `kamailio.conf` in /etc/fail2ban/filter.d/
+[kamailio]
+enabled = true
+filter = kamailio # Custom filter name
+# Kamailio logs to syslog by default. Adjust logpath if Kamailio logs elsewhere.
+# If using systemd journal for syslog:
+# logpath = /var/log/syslog # Or journalctl -u kamailio or similar specific query
+# For systemd journal, backend = systemd and logpath would be a journal match.
+# Assuming standard syslog path for now as per document.
+logpath = /var/log/syslog
+# port = 5060,5061 # SIP ports (UDP/TCP, TLS) - for actions that need port info
+# action = %(action_mwl)s[name=Kamailio, port="5060,5061", protocol="all"]
+maxretry = 5 # Document: 5
+bantime = 1h # Document: 3600s (1 hour)
+
+# Asterisk Media Server Jail
+# Requires a custom filter `asterisk.conf` in /etc/fail2ban/filter.d/
+[asterisk]
+enabled = true
+filter = asterisk # Custom filter name
+# Asterisk logs security events to /var/log/asterisk/security by default.
+# Some distributions might use /var/log/asterisk/messages or full log.
+logpath = /var/log/asterisk/security_log # The document says /var/log/asterisk/security
+                                       # but Asterisk usually has specific log files like messages, security
+                                       # Let's use 'messages' or 'full' if 'security' doesn't exist or is not standard.
+                                       # Or, if Asterisk logs to syslog, that path.
+                                       # Sticking to document's value, assuming it's a configured log target.
+logpath = /var/log/asterisk/security
+# port = 5060,5061 # SIP ports
+# action = %(action_mwl)s[name=Asterisk, port="5060,5061", protocol="all"]
+maxretry = 5 # Document: 5
+bantime = 1h # Document: 3600s (1 hour)
+
+# Example for PostgreSQL (not in document, but common)
+# [postgres]
+# enabled = false # Disabled by default, enable if needed
+# port = 5432
+# filter = postgresql # Requires a postgresql.conf filter
+# logpath = /var/log/postgresql/postgresql-*.log # Adjust for your PG version and log path
+# maxretry = 5
+# bantime = 1h
+
+# Notes:
+# - After modifying this file, restart Fail2ban: `sudo systemctl restart fail2ban`
+# - Check status with: `sudo fail2ban-client status` and `sudo fail2ban-client status <jailname>`
+# - Ensure log paths are correct for your system and services.
+# - Custom filters (kamailio.conf, asterisk.conf) need to be created in /etc/fail2ban/filter.d/
+# - The `bantime`, `findtime`, and `maxretry` values are based on the document.
+#   Adjust them based on your security policies and tolerance for false positives.
+# - If using UFW, you might need a specific UFW action for Fail2Ban if the default action
+#   doesn't integrate well. Search for "fail2ban ufw action".
+#   Often, the default iptables action works fine even with UFW if UFW uses iptables backend.
+#   Fail2ban typically comes with actions for various firewalls.
+# - For systemd backend, `logpath` for services managed by systemd can often be set to use journalctl queries,
+#   e.g., `logpath = systemd-journal _SYSTEMD_UNIT=sshd.service + _COMM=sshd` (this is an example, syntax might vary).
+#   However, the document uses traditional log file paths.

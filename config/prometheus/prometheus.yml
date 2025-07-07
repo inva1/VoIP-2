@@ -1,0 +1,112 @@
+# Prometheus Configuration File for VoIP Business Solution
+# Based on VoIP Business Solution: Enhanced Deployment Guide (Version 2.0)
+#
+# This file would typically be placed at /etc/prometheus/prometheus.yml
+
+global:
+  scrape_interval: 15s     # Default scrape interval for targets
+  evaluation_interval: 15s # How often to evaluate rules
+  # scrape_timeout is set to the global default (10s).
+
+# Alertmanager configuration
+# Defines how Prometheus communicates with Alertmanager instances.
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - 'alertmanager:9093' # Replace with actual Alertmanager host:port if different
+          # - 'alertmanager2:9093' # For HA Alertmanager setup
+
+# Rule files to load
+# These files contain alerting and recording rules.
+rule_files:
+  - "voip_rules.yml"   # Placeholder, this file needs to be created with actual rules
+  # - "another_rules.yml"
+
+# A list of scrape configurations.
+scrape_configs:
+  # Scrape Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090'] # Prometheus default port
+
+  # Node Exporter for system metrics (CPU, memory, disk, network)
+  # Assumes Node Exporter is running on port 9100 on these hosts.
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets:
+          - 'app-server-01:9100'
+          - 'app-server-02:9100'
+          - 'app-server-03:9100'
+          - 'db-server-01:9100'  # For PostgreSQL server host metrics
+          - 'db-server-02:9100'  # For replica/backup DB server host metrics
+          - 'voip-proxy-01:9100' # For Kamailio server host metrics
+          - 'voip-media-01:9100' # For Asterisk server host metrics
+          - 'load-balancer-01:9100' # For Load Balancer host metrics (if applicable)
+          # Add other servers: Redis, ELK nodes, etc.
+
+  # VoIP Backend (Flask/Gunicorn application)
+  # Assumes the Flask app exposes a /metrics endpoint (e.g., using prometheus_flask_exporter)
+  - job_name: 'voip-backend'
+    metrics_path: /metrics # Default path for many exporters
+    static_configs:
+      - targets:
+          - 'app-server-01:5000' # Gunicorn port for app-server-01
+          - 'app-server-02:5000' # Gunicorn port for app-server-02
+          - 'app-server-03:5000' # Gunicorn port for app-server-03
+          # These should be the direct Gunicorn worker IPs/ports, or an internal LB for them.
+
+  # Kamailio SIP Proxy
+  # Kamailio needs an exporter, e.g., `kamailio-prometheus-exporter` or use `rtpengine` stats if applicable.
+  # The document specifies port 9494.
+  - job_name: 'kamailio'
+    static_configs:
+      - targets: ['voip-proxy-01:9494'] # Replace with actual Kamailio exporter endpoint
+
+  # Asterisk Media Server
+  # Asterisk needs an exporter, e.g., `asterisk-prometheus-exporter` or using ARI/AMI to gather metrics.
+  # The document specifies port 8088 (default Asterisk HTTP/ARI port, exporter might use different).
+  # Assuming an exporter is running on 8088/metrics or similar.
+  - job_name: 'asterisk'
+    # metrics_path: /metrics # If exporter uses a specific path on 8088
+    static_configs:
+      - targets: ['voip-media-01:8088'] # Replace with actual Asterisk exporter endpoint
+
+  # Nginx (Web server / Load Balancer)
+  # Nginx needs `ngx_http_stub_status_module` enabled and configured, or a more comprehensive exporter.
+  # The document specifies port 9113 (common for nginx-prometheus-exporter).
+  - job_name: 'nginx'
+    # metrics_path: /metrics # If using nginx-prometheus-exporter
+    static_configs:
+      - targets:
+          - 'load-balancer-01:9113' # For main load balancer
+          # - 'app-server-01:9113' # If Nginx runs on app servers too (e.g. for local SSL termination)
+          # - 'app-server-02:9113'
+          # - 'app-server-03:9113'
+
+  # PostgreSQL Database
+  # Requires a PostgreSQL exporter, e.g., `postgres_exporter`.
+  # The document specifies port 9187 (common for postgres_exporter).
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['db-server-01:9187'] # Primary PostgreSQL server
+          # - 'db-server-02:9187' # Replica PostgreSQL server, if it also runs an exporter
+
+  # Redis
+  # Requires a Redis exporter, e.g., `redis_exporter`.
+  # Example port: 9121 (not specified in doc, but common)
+  # - job_name: 'redis'
+  #   static_configs:
+  #     - targets: ['redis-server-01:9121'] # Replace with actual Redis server + exporter port
+
+# Notes:
+# - Replace placeholder hostnames (app-server-01, db-server-01, etc.) with actual resolvable hostnames or IP addresses.
+# - Ensure that the specified ports are open and Prometheus can reach them.
+# - Each monitored component (Kamailio, Asterisk, Nginx, PostgreSQL, Redis, your Flask app)
+#   needs to expose metrics in a Prometheus-compatible format, often via a dedicated exporter.
+#   The installation and configuration of these exporters are separate tasks.
+# - The `voip_rules.yml` file needs to be created with alerting rules specific to the VoIP application
+#   (e.g., high call failure rate, low ASR, queue overflows, high error rates in backend, etc.).
+# - For dynamic environments (e.g., Kubernetes, AWS EC2 Auto Scaling), consider using service discovery
+#   (e.g., `kubernetes_sd_configs`, `ec2_sd_configs`) instead of static_configs.
+# - Alertmanager target `alertmanager:9093` assumes Alertmanager is running and accessible by that name/port.
