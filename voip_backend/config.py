@@ -32,6 +32,8 @@ class Config:
     JWT_TOKEN_LOCATION = ['headers', 'cookies'] # Allow tokens to be sent in headers or cookies
     JWT_COOKIE_SECURE = os.environ.get('JWT_COOKIE_SECURE', 'False').lower() == 'true' # True in production
     JWT_COOKIE_SAMESITE = 'Lax' # Or 'Strict' or 'None' (if 'None', JWT_COOKIE_SECURE must be True)
+    JWT_BLOCKLIST_ENABLED = True
+    JWT_BLOCKLIST_TOKEN_CHECKS = ['access', 'refresh'] # Check blocklist for both access and refresh tokens
 
 
     # KYC Service Configuration (placeholders, replace with actual provider details)
