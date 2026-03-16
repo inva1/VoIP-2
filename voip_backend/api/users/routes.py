@@ -65,7 +65,7 @@ def update_current_user_profile():
         return jsonify({"error": "Validation error", "messages": err.messages}), 422
 
     if not data_to_update:
-        return jsonify({"message": "No update data provided."}), 200 # Or 400 if you require at least one field
+        return jsonify({"message": "No updatable fields provided.", "user": user_schema.dump(user)}), 200
 
     try:
         # Update user fields if they are provided in the validated data
