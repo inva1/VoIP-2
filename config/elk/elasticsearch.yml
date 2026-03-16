@@ -1,0 +1,88 @@
+# Elasticsearch Configuration File for VoIP Business Solution (ELK Stack)
+# Based on VoIP Business Solution: Enhanced Deployment Guide (Version 2.0)
+#
+# This file would typically be placed at /etc/elasticsearch/elasticsearch.yml
+
+# Cluster name - identifies your Elasticsearch cluster
+cluster.name: voip-logs
+
+# Node name - identifies this specific node within the cluster
+# It's good practice to make this unique for each node.
+node.name: elasticsearch-01 # Change for other nodes, e.g., elasticsearch-02
+
+# Path to directory where to store the data (indices).
+path.data: /var/lib/elasticsearch # Ensure this directory exists and is writable by elasticsearch user
+
+# Path to log files.
+path.logs: /var/log/elasticsearch # Ensure this directory exists and is writable by elasticsearch user
+
+# Network settings
+# Bind to a specific IP address or 0.0.0.0 to bind to all available interfaces.
+# For production, bind to a non-loopback address if other nodes or Logstash need to connect.
+network.host: 0.0.0.0 # Or specific internal IP, e.g., 10.0.X.X
+# Default HTTP port for REST API
+http.port: 9200
+# Default transport port for inter-node communication (usually http.port + 100)
+# transport.port: 9300
+
+# Discovery settings for cluster formation
+# List of seed hosts (other master-eligible nodes) for discovery.
+# For a multi-node cluster, list other nodes here.
+# For a single-node development setup, this can be simplified.
+# The document implies a 3-node cluster (elasticsearch-01, -02, -03).
+discovery.seed_hosts: ["elasticsearch-01:9300", "elasticsearch-02:9300", "elasticsearch-03:9300"]
+# Replace hostnames with actual IPs or resolvable hostnames and correct transport port.
+
+# Initial master nodes for bootstrapping the cluster (first time setup).
+# Should list the node.name of master-eligible nodes.
+cluster.initial_master_nodes: ["elasticsearch-01", "elasticsearch-02", "elasticsearch-03"]
+# After the cluster is formed, this setting is ignored. Remove or comment out for subsequent node additions.
+
+# Security (X-Pack basic features are free, including security)
+# The document specifies these.
+xpack.security.enabled: true
+xpack.security.transport.ssl.enabled: true # For encrypted inter-node communication
+xpack.security.http.ssl.enabled: true    # For encrypted HTTP REST API (Kibana, Logstash to ES)
+
+# If xpack.security.http.ssl.enabled is true, you need to configure keystore/truststore or certs/keys:
+# xpack.security.http.ssl.keystore.path: /path/to/http.p12
+# xpack.security.http.ssl.truststore.path: /path/to/http.p12
+# OR
+# xpack.security.http.ssl.certificate: /path/to/certs/http.crt
+# xpack.security.http.ssl.key: /path/to/certs/http.key
+# xpack.security.http.ssl.certificate_authorities: [ "/path/to/certs/ca.crt" ]
+
+# Same for transport.ssl:
+# xpack.security.transport.ssl.keystore.path: /path/to/transport.p12
+# xpack.security.transport.ssl.truststore.path: /path/to/transport.p12
+# OR
+# xpack.security.transport.ssl.certificate: /path/to/certs/transport.crt
+# xpack.security.transport.ssl.key: /path/to/certs/transport.key
+# xpack.security.transport.ssl.certificate_authorities: [ "/path/to/certs/ca.crt" ]
+
+# Performance Tuning Parameters (from document)
+# These are percentages of JVM heap size.
+# Ensure JVM heap size is configured appropriately (e.g., in jvm.options).
+indices.memory.index_buffer_size: 20% # Buffer for indexing operations
+indices.queries.cache.size: 20%       # Cache for query results (filter cache)
+
+# Other common settings to consider for production:
+# bootstrap.memory_lock: true # Prevent JVM heap from being swapped to disk (requires ulimit -l unlimited)
+# action.destructive_requires_name: true # Prevent accidental deletion of all indices with wildcard
+
+# For a single-node setup (e.g., development or very small deployment):
+# discovery.type: single-node
+# And remove/comment out discovery.seed_hosts and cluster.initial_master_nodes.
+
+# Notes:
+# - This configuration assumes a 3-node Elasticsearch cluster as implied by the document.
+# - `elasticsearch-01`, `elasticsearch-02`, `elasticsearch-03` should be resolvable hostnames or IPs.
+# - The transport port (default 9300) is used for inter-node communication.
+# - Enabling X-Pack security requires further setup:
+#   - Generating certificates for SSL/TLS.
+#   - Setting up users and roles (e.g., for Kibana, Logstash).
+#     Run `bin/elasticsearch-setup-passwords auto` or `interactive` after first start.
+# - JVM heap size should be set in `config/jvm.options` (e.g., -Xms4g -Xmx4g for 4GB heap).
+#   Typically, set it to no more than 50% of system RAM and not exceeding ~30GB.
+# - Ensure file descriptor limits (`ulimit -n`) are high enough for Elasticsearch (e.g., 65536).
+# - Ensure virtual memory limits (`vm.max_map_count`) are set correctly.
