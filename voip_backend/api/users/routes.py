@@ -19,7 +19,7 @@ def get_current_user_profile():
     """
     Get the profile of the currently authenticated user.
     """
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     user = User.query.get(current_user_id)
 
     if not user:
@@ -41,7 +41,7 @@ def update_current_user_profile():
     Update the profile of the currently authenticated user.
     Accepts JSON payload with fields to update (e.g., first_name, last_name).
     """
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     user = User.query.get(current_user_id)
 
     if not user:
